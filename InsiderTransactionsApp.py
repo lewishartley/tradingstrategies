@@ -21,12 +21,18 @@ ticker = st.text_input('Ticker symbol (e.g. AAPL)', 'AAPL')
 start_date = st.date_input("Start date", max_value=datetime.today() - timedelta(weeks = 16), value=datetime.today() - timedelta(weeks = 16))
 end_date = st.date_input("End date", min_value=start_date + timedelta(days=1), max_value=datetime.today())
 
+filing_or_transaction = st.selectbox(
+    'Date Transacted or Date Filed?', ('Date Filed', 'Date Transacted'))
+
 ticker_data = pd.json_normalize(requests.get(f"https://api.polygon.io/v2/aggs/ticker/{ticker}/range/1/day/{start_date.strftime('%Y-%m-%d')}/{end_date.strftime('%Y-%m-%d')}?adjusted=true&sort=asc&limit=50000&apiKey={polygon_api_key}").json()["results"]).set_index("t")
 ticker_data.index = pd.to_datetime(ticker_data.index, unit="ms", utc=True).tz_convert("America/New_York")
 ticker_data.index = pd.to_datetime(ticker_data.index.date)
 ticker_data = ticker_data[["c"]].dropna()
 ticker_data.reset_index(inplace=True)
-ticker_data = ticker_data.rename(columns={'c' : 'Price', 'index': 'Transaction Date'})
+if filing_or_transaction == 'Date Transacted':
+    ticker_data = ticker_data.rename(columns={'c' : 'Price', 'index': 'Transaction Date'})
+elif filing_or_transaction == 'Date Filed':
+    ticker_data = ticker_data.rename(columns={'c' : 'Price', 'index': 'Filing Date'})
 
 # Function to get CIK for a given ticker
 
@@ -182,8 +188,9 @@ if transactions.empty == False:
     transactions['Transaction Price'] = transactions['Transaction Price'][0][1:]
     transactions['Transaction Price'] = pd.to_numeric(transactions['Transaction Price'])
 
-transactions['Transaction Date'] = pd.to_datetime(transactions['Transaction Date'])
-transactions['Filing Date'] = pd.to_datetime(transactions['Filing Date'])
+transactions['Transaction Date'] = pd.to_datetime(transactions['Transaction Date'], format='%m/%d/%Y')
+transactions['Filing Date'] = pd.to_datetime(transactions['Filing Date'], format='%m/%d/%Y')
+
 transactions.sort_values(by='Transaction Date', ascending = True, inplace=True)
 transactions.reset_index(drop=True, inplace=True)
 
@@ -193,9 +200,16 @@ transactions['Transaction Value'] = transactions['Transaction Value'].astype(int
 
 date_range = pd.date_range(start=start_date, end=end_date, freq='D')
 
-dailydata = pd.DataFrame(date_range, columns=['Transaction Date'])
+if filing_or_transaction == 'Date Filed':
+    dailydata = pd.DataFrame(date_range, columns=['Filing Date'])
 
-dailydata = pd.merge(dailydata, transactions[['Transaction Date', 'Transaction Value', 'Transaction Type']], 
+    dailydata = pd.merge(dailydata, transactions[['Filing Date', 'Transaction Value', 'Transaction Type']], 
+                    on='Filing Date', how='left')
+
+elif filing_or_transaction == 'Date Transacted':
+    dailydata = pd.DataFrame(date_range, columns=['Transaction Date'])
+
+    dailydata = pd.merge(dailydata, transactions[['Transaction Date', 'Transaction Value', 'Transaction Type']], 
                     on='Transaction Date', how='left')
 
 dailydata['Transaction Value'] = dailydata['Transaction Value'].fillna(0).astype(int)
@@ -217,11 +231,93 @@ for index, row in dailydata.iterrows():
         cumulative_sells += row['Transaction Value']
     dailydata.at[index, 'Total Sells'] = cumulative_sells
 
-
 dailydata['Net Total'] = dailydata['Transaction Value'].cumsum().astype(int)
 
-dailydata = pd.merge(dailydata, ticker_data, on = 'Transaction Date', how = 'left')
+if filing_or_transaction == 'Date Filed':
+    dailydata = pd.merge(dailydata, ticker_data, on = 'Filing Date', how = 'left')
+elif filing_or_transaction == 'Date Transacted':
+    dailydata = pd.merge(dailydata, ticker_data, on = 'Transaction Date', how = 'left')
+
 dailydata['Price'] = dailydata['Price'].ffill()
 dailydata['Price'] = dailydata['Price'].bfill()
+
+show_buys = st.checkbox("Show Cumulative Buys", value=True)
+show_sells = st.checkbox("Show Cumulative Sells", value=True)
+show_net = st.checkbox("Show Net Total", value=True)
+show_underlying = st.checkbox("Show Underlying Stock Price", value=True)
+
+fig = go.Figure()
+
+if filing_or_transaction == 'Date Transacted':
+    tracenet = go.Scatter(x=dailydata['Transaction Date'], y=dailydata['Net Total'].values, mode='lines', name='Net Total', line=dict(color='Blue'), showlegend=True, yaxis='y1')
+    tracebuys = go.Scatter(x=dailydata['Transaction Date'], y=dailydata['Total Buys'].values, mode='lines', name='Cumulative Buys', line=dict(color='Green'), showlegend=True, yaxis='y1')
+    tracesells = go.Scatter(x=dailydata['Transaction Date'], y=dailydata['Total Sells'].values, mode='lines', name='Cumulative Sells', line=dict(color='Red'), showlegend=True, yaxis='y1')
+    tracestock = go.Scatter(x=dailydata['Transaction Date'], y=dailydata['Price'].values, mode='lines', name='Stock Price', line=dict(color='Orange'), showlegend=True, yaxis='y2', )
+elif filing_or_transaction == 'Date Filed':
+    tracenet = go.Scatter(x=dailydata['Filing Date'], y=dailydata['Net Total'].values, mode='lines', name='Net Total', line=dict(color='Blue'), showlegend=True, yaxis='y1')
+    tracebuys = go.Scatter(x=dailydata['Filing Date'], y=dailydata['Total Buys'].values, mode='lines', name='Cumulative Buys', line=dict(color='Green'), showlegend=True, yaxis='y1')
+    tracesells = go.Scatter(x=dailydata['Filing Date'], y=dailydata['Total Sells'].values, mode='lines', name='Cumulative Sells', line=dict(color='Red'), showlegend=True, yaxis='y1')
+    tracestock = go.Scatter(x=dailydata['Filing Date'], y=dailydata['Price'].values, mode='lines', name='Stock Price', line=dict(color='Orange'), showlegend=True, yaxis='y2', )
+
+if show_net:
+    fig.add_trace(tracenet)
+
+if show_buys:
+    fig.add_trace(tracebuys)
+
+if show_sells:
+    fig.add_trace(tracesells)
+
+if show_underlying:
+    fig.add_trace(tracestock)
+
+
+fig.update_layout(
+    title= f'{ticker} Insider Transactions',
+    xaxis_title='Date',
+    yaxis_title='Notional Value Traded',
+    template='plotly_white',
+    title_x=0.5,
+    yaxis=dict(
+        title='Value Traded',
+        titlefont=dict(color='Black'),
+        tickfont=dict(color='Black'),
+        showline=True,
+        showticklabels=True,
+        showgrid=True,
+        linecolor='Black',
+        linewidth=2,
+        ticks='outside',
+    ),
+    yaxis2=dict(
+        title='Stock Price',
+        titlefont=dict(color='Black'),
+        tickfont=dict(color='Black'),
+        overlaying='y',
+        side='right',
+        showline=True,
+        showticklabels=True,
+        showgrid=False,
+        linecolor='Black',
+        linewidth=2,
+        ticks='outside',
+    ),
+    xaxis=dict(
+        showline=True,
+        showgrid=True,
+        showticklabels=True,
+        linecolor='Black',
+        linewidth=2,
+        ticks='outside',
+        tickfont=dict(
+            family='Arial',
+            size=12,
+            color='Black',
+        ),
+    ),
+)
+
+if show_net or show_buys or show_sells or show_underlying:
+    st.plotly_chart(fig)
 
 st.dataframe(transactions)
