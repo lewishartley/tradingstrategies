@@ -2,7 +2,6 @@ import requests
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-import xml.etree.ElementTree as ET
 from bs4 import BeautifulSoup
 import plotly.graph_objs as go
 import streamlit as st
