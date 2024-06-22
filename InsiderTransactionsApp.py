@@ -17,6 +17,8 @@ cik_mapping_url = 'https://www.sec.gov/files/company_tickers.json'
 
 st.title("Insider Transactions")
 
+st.markdown("This application queries multiple APIs and scrapes and parses web-based forms. Please allow up to a few minutes for it to process, especially for large date ranges.")
+
 ticker = st.text_input('Ticker symbol (e.g. AAPL)', 'AAPL')
 start_date = st.date_input("Start date", max_value=datetime.today() - timedelta(weeks = 16), value=datetime.today() - timedelta(weeks = 16))
 end_date = st.date_input("End date", min_value=start_date + timedelta(days=1), max_value=datetime.today())
@@ -185,7 +187,8 @@ if transactions.empty == False:
     transactions['Transaction Amount'] = transactions['Transaction Amount'].str.replace(',', '', regex=True)
     transactions['Transaction Amount'] = pd.to_numeric(transactions['Transaction Amount'])
     transactions['Transaction Price'] = transactions['Transaction Price'].str.replace(r'\([^)]*\)', '', regex=True)
-    transactions['Transaction Price'] = transactions['Transaction Price'][0][1:]
+    transactions['Transaction Price'] = transactions['Transaction Price'][0][1:]   
+    transactions['Transaction Price'] = transactions['Transaction Price'].str.replace(',', '', regex=True)
     transactions['Transaction Price'] = pd.to_numeric(transactions['Transaction Price'])
 
 transactions['Transaction Date'] = pd.to_datetime(transactions['Transaction Date'], format='%m/%d/%Y')
@@ -241,8 +244,8 @@ elif filing_or_transaction == 'Date Transacted':
 dailydata['Price'] = dailydata['Price'].ffill()
 dailydata['Price'] = dailydata['Price'].bfill()
 
-show_buys = st.checkbox("Show Cumulative Buys", value=True)
-show_sells = st.checkbox("Show Cumulative Sells", value=True)
+show_buys = st.checkbox("Show Cumulative Buys", value=False)
+show_sells = st.checkbox("Show Cumulative Sells", value=False)
 show_net = st.checkbox("Show Net Total", value=True)
 show_underlying = st.checkbox("Show Underlying Stock Price", value=True)
 
@@ -282,12 +285,7 @@ fig.update_layout(
         title='Value Traded',
         titlefont=dict(color='Black'),
         tickfont=dict(color='Black'),
-        showline=True,
-        showticklabels=True,
         showgrid=True,
-        linecolor='Black',
-        linewidth=2,
-        ticks='outside',
     ),
     yaxis2=dict(
         title='Stock Price',
@@ -295,25 +293,10 @@ fig.update_layout(
         tickfont=dict(color='Black'),
         overlaying='y',
         side='right',
-        showline=True,
-        showticklabels=True,
         showgrid=False,
-        linecolor='Black',
-        linewidth=2,
-        ticks='outside',
     ),
     xaxis=dict(
-        showline=True,
         showgrid=True,
-        showticklabels=True,
-        linecolor='Black',
-        linewidth=2,
-        ticks='outside',
-        tickfont=dict(
-            family='Arial',
-            size=12,
-            color='Black',
-        ),
     ),
 )
 
