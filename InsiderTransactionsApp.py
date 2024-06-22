@@ -17,7 +17,7 @@ cik_mapping_url = 'https://www.sec.gov/files/company_tickers.json'
 
 st.title("Insider Transactions")
 
-st.markdown("This application queries multiple APIs and scrapes and parses web-based forms. Please allow up to a few minutes for it to process, especially for large date ranges.")
+st.markdown("This application queries multiple APIs and scrapes and parses web-based forms. Please allow up to a few minutes for it to process, especially for large date ranges. Run speed and other bugs are currently being worked on.")
 
 ticker = st.text_input('Ticker symbol (e.g. AAPL)', 'AAPL')
 start_date = st.date_input("Start date", max_value=datetime.today() - timedelta(weeks = 16), value=datetime.today() - timedelta(weeks = 16))
@@ -37,7 +37,6 @@ elif filing_or_transaction == 'Date Filed':
     ticker_data = ticker_data.rename(columns={'c' : 'Price', 'index': 'Filing Date'})
 
 # Function to get CIK for a given ticker
-
 def get_cik_for_ticker(ticker):
     try:
         
@@ -55,7 +54,6 @@ def get_cik_for_ticker(ticker):
         return None
     
     #Function to check whether a cik is valid
-
 def is_valid_cik(cik):
     response = requests.get(f'https://data.sec.gov/submissions/CIK{cik}.json', headers=headers)
     
@@ -69,7 +67,6 @@ def is_valid_cik(cik):
         return False
     
     #Function that extracts filings from sec for a given cik
-
 def fetch_filings(cik):
     try:
         # Make the request to get the filings data
@@ -81,7 +78,6 @@ def fetch_filings(cik):
         return None  
     
     #Function that filters extracted filings for form 4s
-
 def filter_form4_filings(filings, start_date, end_date):
     form4_urls = []
     for i in range(len(filings['form'])):
@@ -93,14 +89,12 @@ def filter_form4_filings(filings, start_date, end_date):
     return form4_urls
 
 # Function to fetch a filing from their url and parse HTML
-
 def fetch_and_parse_html(document_url):
     response = requests.get(document_url, headers=headers)
     response.raise_for_status()
     return BeautifulSoup(response.content, 'html.parser')
 
 # Function to extract relevant data from a filing's html
-
 def extract_form4_data(soup):
     datalist = []
     
