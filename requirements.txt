@@ -1,0 +1,7 @@
+requests
+pandas
+numpy
+datetime
+bs4
+plotly
+streamlit
