@@ -180,6 +180,7 @@ transactions = transactions.drop(columns = ['Transaction Code'])
 
 if transactions.empty == False:
     transactions['Transaction Amount'] = transactions['Transaction Amount'].str.replace(',', '', regex=True)
+    transactions['Transaction Amount'] = transactions['Transaction Amount'].str.replace(r'\([^)]*\)', '', regex=True)
     transactions['Transaction Amount'] = pd.to_numeric(transactions['Transaction Amount'])
     transactions['Transaction Price'] = transactions['Transaction Price'].str.replace(r'\([^)]*\)', '', regex=True)
     transactions['Transaction Price'] = transactions['Transaction Price'][0][1:]   
