@@ -140,6 +140,8 @@ elif is_valid_cik('0000' + cik):
     cik = '0000'+cik
 elif is_valid_cik('00000' + cik):
     cik = '00000'+cik
+elif is_valid_cik('000000' + cik):
+    cik = '000000'+cik
 else:
     print("Error fetching CIK")
 
