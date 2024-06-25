@@ -16,7 +16,8 @@ cik_mapping_url = 'https://www.sec.gov/files/company_tickers.json'
 
 st.title("Insider Transactions")
 
-st.markdown("This application queries multiple APIs and scrapes and parses web-based forms. Please allow up to a few minutes for it to process, especially for large date ranges. Run speed and other bugs are currently being worked on.")
+st.markdown("This application extracts data from SEC Form 4 filings thus supports US listed equities. It extracts open market buys and sells, ignoring other transactions for example non open market acquisitions and dispositions.")
+st.markdown("Please allow up to a few minutes for the application to process, especially for large date ranges")
 
 ticker = st.text_input('Ticker symbol (e.g. AAPL)', 'AAPL')
 start_date = st.date_input("Start date", max_value=datetime.today() - timedelta(weeks = 16), value=datetime.today() - timedelta(weeks = 16))
