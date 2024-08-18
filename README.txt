@@ -1,3 +1,3 @@
-CURRENTLY A WORK IN PROGRESS
+Accessible at insidertransactions.streamlit.app
 
-An application in which a user can define a stock ticker and a date range and it returns all insider transactions in that period as well as visualisations. Works by scrapinng data from FORM 4 filings for that company from SEC Edgar.
+An application in which a user can define a stock ticker and a date range and it will return all insider transactions in that period alongside visualisations. The application scrapes data from FORM 4 filings from SEC Edgar and extracts relevant market data from Polygon API.
