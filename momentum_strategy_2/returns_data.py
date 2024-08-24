@@ -13,12 +13,7 @@ calendar = get_calendar("NYSE")
 engine = sqlalchemy.create_engine("sqlite:///C:/Users/lewis/OneDrive/tradingstrategies/databases/momentum_strategy_2_database.db")
 tickers = pd.read_sql("SELECT * FROM liquid_stocks", con = engine)["ticker"].values
 
-#12 month look back from previous ME
-if datetime.today() != datetime.today().replace(day=1):
-    end_date = datetime.today().replace(day=1) - timedelta(days=1)
-else:
-    end_date = datetime.today() - timedelta(days=1)
-
+end_date = datetime.today() - timedelta(days=1)
 start_date = end_date - relativedelta(months=+12) - timedelta(days=1)
 
 dates = calendar.schedule(start_date = start_date, end_date = end_date).index.strftime("%Y-%m-%d").values
