@@ -14,7 +14,7 @@ engine = sqlalchemy.create_engine("sqlite:///C:/Users/lewis/OneDrive/tradingstra
 tickers = pd.read_sql("SELECT * FROM liquid_stocks", con = engine)["ticker"].values
 
 end_date = datetime.today() - timedelta(days=1)
-start_date = end_date - relativedelta(months=+12) - timedelta(days=1)
+start_date = end_date - relativedelta(years=4) - timedelta(days=1)
 
 dates = calendar.schedule(start_date = start_date, end_date = end_date).index.strftime("%Y-%m-%d").values
 
