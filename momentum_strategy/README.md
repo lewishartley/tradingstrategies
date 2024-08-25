@@ -1,1 +1,1 @@
-![alt text](https://github.com/lewishartley/tradtingstrategies/momentum_strategy/main/Figure_1.png?raw=true)
+![alt text](relative%20path/to/Figure_1.png?raw=true "Momentum Strategy Returns")
