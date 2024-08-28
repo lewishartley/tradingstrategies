@@ -27,5 +27,5 @@ for stock_data in stock_list:
     
 total_available_stocks = pd.concat(available_stock_list)
 total_available_stocks = pd.DataFrame(total_available_stocks)
-engine = sqlalchemy.create_engine("C:/Users/lewis/OneDrive/tradingstrategies/databases/momentum_strategy_2_database.db")
+engine = sqlalchemy.create_engine("sqlite///C:/Users/lewis/OneDrive/tradingstrategies/databases/momentum_strategy_2_database.db")
 total_available_stocks.to_sql("all_stocks", con = engine, if_exists="replace")
