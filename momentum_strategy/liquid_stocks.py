@@ -43,7 +43,7 @@ stocks_notional['notional'] = stocks_notional['c'] * stocks_notional['v']
 stocks_notional = stocks_notional.drop(columns=['v','vw','o','c','h','l','t','n'])
 stocks_notional = stocks_notional.groupby('T', as_index=False).sum()
 stocks_notional = stocks_notional.sort_values('notional', ascending=False)
-stocks_notional = stocks_notional.head(2000)
+stocks_notional = stocks_notional.head(1000)
 stocks_notional = stocks_notional.rename(columns={'T': 'ticker'})
 stocks_notional = stocks_notional.reset_index(drop = True)
 

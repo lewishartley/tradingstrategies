@@ -19,12 +19,7 @@ all_stocks_5 = requests.get(f"{all_stocks_4['next_url']}&apikey={polygon_api_key
 all_stocks_6 = requests.get(f"{all_stocks_5['next_url']}&apikey={polygon_api_key}").json()
 
 stock_list = [all_stocks_1, all_stocks_2, all_stocks_3, all_stocks_4, all_stocks_5, all_stocks_6]
-available_stock_list = []
-
-for stock_data in stock_list:
-    available_stocks  = pd.json_normalize(stock_data["results"])
-    available_stock_list.append(available_stocks)
-    
+available_stock_list = [] 
 total_available_stocks = pd.concat(available_stock_list)
 total_available_stocks = pd.DataFrame(total_available_stocks)
 engine = sqlalchemy.create_engine("sqlite///C:/Users/lewis/OneDrive/tradingstrategies/databases/momentum_strategy_2_database.db")
