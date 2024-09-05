@@ -12,11 +12,10 @@ calendar = get_calendar("NYSE")
 polygon_api_key = "KkfCQ7fsZnx0yK4bhX9fD81QplTh0Pf3"
 
 stock_returns = pd.read_sql("SELECT * FROM stock_returns", con = engine)
-stock_returns = stock_returns.set_index('ticker')
-gross_returns = stock_returns + 1
+stock_returns = stock_returns.set_index('index')
 
-start_date_long = (pd.to_datetime(gross_returns.columns[0]).date())
-end_date = pd.to_datetime(gross_returns.columns[-1]).date()
+start_date_long = (pd.to_datetime(stock_returns.index[0]).date())
+end_date = pd.to_datetime(stock_returns.index[-1]).date()
 dates_long = calendar.schedule(start_date = start_date_long, end_date = end_date).index.strftime("%Y-%m-%d").values
 start_date_short = pd.to_datetime(dates_long[30]).date()
 dates_short = calendar.schedule(start_date = start_date_short, end_date = end_date).index.strftime("%Y-%m-%d").values
@@ -33,10 +32,10 @@ for date in dates_short:
     else:
         yday = dates_short[np.where(dates_short == date)[0][0]-1]
         screening_df = pd.DataFrame()
-        screening_df['ticker'] = gross_returns.index
-        screening_df['t momentum'] = screening_df['ticker'].map(gross_returns.loc[:, dates_long[np.where(dates_long == yday)[0][0]-10]:yday].cumprod(axis=1).iloc[:, -1]-1)
-        screening_df['t-1 momentum'] = screening_df['ticker'].map(gross_returns.loc[:, dates_long[np.where(dates_long == yday)[0][0]-20]:dates_long[np.where(dates_long == yday)[0][0]-10]].cumprod(axis=1).iloc[:, -1]-1)
-        screening_df['t-2 momentum'] = screening_df['ticker'].map(gross_returns.loc[:, dates_long[np.where(dates_long == yday)[0][0]-30]:dates_long[np.where(dates_long == yday)[0][0]-20]].cumprod(axis=1).iloc[:, -1]-1)
+        screening_df['ticker'] = stock_returns.columns
+        screening_df['t momentum'] = screening_df['ticker'].map(stock_returns.loc[dates_long[np.where(dates_long == yday)[0][0]-9]:yday, :].cumprod(axis=0).iloc[-1,:]-1)
+        screening_df['t-1 momentum'] = screening_df['ticker'].map(stock_returns.loc[dates_long[np.where(dates_long == yday)[0][0]-19]:dates_long[np.where(dates_long == yday)[0][0]-10], :].cumprod(axis=0).iloc[-1,:]-1)
+        screening_df['t-2 momentum'] = screening_df['ticker'].map(stock_returns.loc[dates_long[np.where(dates_long == yday)[0][0]-29]:dates_long[np.where(dates_long == yday)[0][0]-20], :].cumprod(axis=0).iloc[-1,:]-1)
         #adm = average daily momentum
         screening_df['t adm'] = screening_df['t momentum'] / 10
         screening_df['t-1 adm'] = screening_df['t-1 momentum'] / 10
@@ -50,8 +49,8 @@ for date in dates_short:
         long_momentum_portfolio = screening_df[increasing_momentum_conditions]['ticker'].tolist()
         short_momentum_portfolio = screening_df[decreasing_momentum_conditions]['ticker'].tolist()
         portfolios = pd.concat([portfolios, pd.DataFrame([{'Date' : date, 'Long Portfolio' : long_momentum_portfolio, 'Short Portfolio' : short_momentum_portfolio}])], ignore_index=True)
-        long_return = (gross_returns[gross_returns.index.isin(long_momentum_portfolio)][date]).mean()
-        short_return = ((((gross_returns[gross_returns.index.isin(short_momentum_portfolio)][date])-1)*-1)+1).mean()
+        long_return = stock_returns.loc[date, long_momentum_portfolio].mean()
+        short_return = ((((stock_returns.loc[date, short_momentum_portfolio])-1)*-1)+1).mean()
         denominator = max(len(long_momentum_portfolio)+len(short_momentum_portfolio), 1)
         gross_return = long_return*(len(long_momentum_portfolio)/denominator) + short_return*(len(short_momentum_portfolio)/denominator)
         portfolio_returns = pd.concat([portfolio_returns, pd.DataFrame([{'Date' : date, 'Long Momentum Returns' : long_return, 'Short Momentum Returns': short_return, 'Gross Returns' : gross_return}])], ignore_index=True)
@@ -69,10 +68,9 @@ for date in dates_short:
 
 portfolio_returns = portfolio_returns.set_index('Date')
 
-benchmark_data = pd.json_normalize(requests.get(f"https://api.polygon.io/v2/aggs/ticker/SPY/range/1/day/{start_date_short}/{end_date}?adjusted=true&sort=asc&limit=50000&apiKey={polygon_api_key}").json()["results"]).set_index("t")
-benchmark_data.index = pd.to_datetime(benchmark_data.index, unit="ms", utc=True).tz_convert("America/New_York").strftime("%Y-%m-%d")
-benchmark_data['Benchmark Return'] = benchmark_data["c"].pct_change().fillna(0) + 1
-benchmark_data = benchmark_data.drop(columns = ['v', 'vw', 'o', 'c', 'h', 'l', 'n'])
+benchmark_data = pd.read_sql("SELECT * FROM benchmark_data", con=engine)
+benchmark_data = benchmark_data.set_index('t')
+benchmark_data = benchmark_data.loc[start_date_short:end_date]
 
 portfolio_returns = portfolio_returns.join(benchmark_data, how='left')
 portfolio_returns['Cumulative Long Returns'] = portfolio_returns['Long Momentum Returns'].cumprod()
