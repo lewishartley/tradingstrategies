@@ -14,6 +14,12 @@ polygon_api_key = "KkfCQ7fsZnx0yK4bhX9fD81QplTh0Pf3"
 stock_returns = pd.read_sql("SELECT * FROM stock_returns", con = engine)
 stock_returns = stock_returns.set_index('index')
 
+benchmark_data = pd.read_sql("SELECT * FROM benchmark_data", con = engine)
+benchmark_data = benchmark_data.set_index('t')
+benchmark_data = benchmark_data.drop(columns = ['Benchmark Price'])
+
+stock_returns = stock_returns.join(benchmark_data, how = 'left')
+
 start_date_long = (pd.to_datetime(stock_returns.index[0]).date())
 end_date = pd.to_datetime(stock_returns.index[-1]).date()
 dates_long = calendar.schedule(start_date = start_date_long, end_date = end_date).index.strftime("%Y-%m-%d").values
@@ -33,19 +39,15 @@ for date in dates_short:
         yday = dates_short[np.where(dates_short == date)[0][0]-1]
         screening_df = pd.DataFrame()
         screening_df['ticker'] = stock_returns.columns
-        screening_df['t momentum'] = screening_df['ticker'].map(stock_returns.loc[dates_long[np.where(dates_long == yday)[0][0]-9]:yday, :].cumprod(axis=0).iloc[-1,:]-1)
-        screening_df['t-1 momentum'] = screening_df['ticker'].map(stock_returns.loc[dates_long[np.where(dates_long == yday)[0][0]-19]:dates_long[np.where(dates_long == yday)[0][0]-10], :].cumprod(axis=0).iloc[-1,:]-1)
-        screening_df['t-2 momentum'] = screening_df['ticker'].map(stock_returns.loc[dates_long[np.where(dates_long == yday)[0][0]-29]:dates_long[np.where(dates_long == yday)[0][0]-20], :].cumprod(axis=0).iloc[-1,:]-1)
-        #adm = average daily momentum
-        screening_df['t adm'] = screening_df['t momentum'] / 10
-        screening_df['t-1 adm'] = screening_df['t-1 momentum'] / 10
-        screening_df['t-2 adm'] = screening_df['t-2 momentum'] / 10
-        #ddm = difference in daily momentum
-        screening_df['t/t-1 ddm'] = screening_df['t adm'] - screening_df['t-1 adm']
-        screening_df['t-1/t-2 ddm'] = screening_df['t-1 adm'] - screening_df['t-2 adm']
+        screening_df['t beta'] = screening_df['ticker'].map(stock_returns.loc[dates_long[np.where(dates_long == yday)[0][0]-9]:yday, :].cov()['Benchmark Return'][:-1]/stock_returns.loc[dates_long[np.where(dates_long == yday)[0][0]-9]:yday, :].var()[:-1])
+        screening_df['t-1 beta'] = screening_df['ticker'].map(stock_returns.loc[dates_long[np.where(dates_long == yday)[0][0]-19]:dates_long[np.where(dates_long == yday)[0][0]-10], :].cov()['Benchmark Return'][:-1]/stock_returns.loc[dates_long[np.where(dates_long == yday)[0][0]-19]:dates_long[np.where(dates_long == yday)[0][0]-10], :].var()[:-1])
+        screening_df['t-2 beta'] = screening_df['ticker'].map(stock_returns.loc[dates_long[np.where(dates_long == yday)[0][0]-29]:dates_long[np.where(dates_long == yday)[0][0]-20], :].cov()['Benchmark Return'][:-1]/stock_returns.loc[dates_long[np.where(dates_long == yday)[0][0]-29]:dates_long[np.where(dates_long == yday)[0][0]-20], :].var()[:-1])
+        #dbeta
+        screening_df['t/t-1 dbeta'] = screening_df['t beta'] - screening_df['t-1 beta']
+        screening_df['t-1/t-2 dbeta'] = screening_df['t-1 beta'] - screening_df['t-2 beta']
         #I am trying to play around with the conditions here to see what maximises returns. Not sure the best way of optimising
-        increasing_momentum_conditions = (screening_df['t adm'] > screening_df['t-1 adm']) & (screening_df['t-1 adm'] > screening_df['t-2 adm']) & (screening_df['t/t-1 ddm'] > screening_df['t-1/t-2 ddm'])
-        decreasing_momentum_conditions = (screening_df['t adm'] < screening_df['t-1 adm']) & (screening_df['t-1 adm'] < screening_df['t-2 adm']) & (screening_df['t/t-1 ddm'] < screening_df['t-1/t-2 ddm'])
+        increasing_momentum_conditions = (screening_df['t/t-1 dbeta'] > 0) & (screening_df['t beta'] > 0) & (screening_df['t beta'] > screening_df['t-1 beta']) & (screening_df['t-1 beta'] > screening_df['t-2 beta']) & (screening_df['t/t-1 dbeta'] > screening_df['t-1/t-2 dbeta'])
+        decreasing_momentum_conditions = (screening_df['t/t-1 dbeta'] < 0) & (screening_df['t beta'] < 0) & (screening_df['t beta'] < screening_df['t-1 beta']) & (screening_df['t-1 beta'] < screening_df['t-2 beta']) & (screening_df['t/t-1 dbeta'] < screening_df['t-1/t-2 dbeta'])
         long_momentum_portfolio = screening_df[increasing_momentum_conditions]['ticker'].tolist()
         short_momentum_portfolio = screening_df[decreasing_momentum_conditions]['ticker'].tolist()
         portfolios = pd.concat([portfolios, pd.DataFrame([{'Date' : date, 'Long Portfolio' : long_momentum_portfolio, 'Short Portfolio' : short_momentum_portfolio}])], ignore_index=True)
@@ -93,7 +95,7 @@ summary_stats_temp = pd.DataFrame({'Long Return' : round((portfolio_returns['Cum
 summary_stats = pd.concat([summary_stats, summary_stats_temp], ignore_index=True)
 
 print(summary_stats)
-portfolios.to_csv('C:/Users/lewis/OneDrive/tradingstrategies/test_csv/portfolios.csv')
+portfolios.to_csv('C:/Users/lewis/OneDrive/tradingstrategies/test_csv/beta_portfolios.csv')
 #portfolios.to_sql("momentum_portfolios", con = engine, if_exists="replace")
 
 plt.figure(figsize=(10, 5))
@@ -105,7 +107,7 @@ plt.plot(portfolio_returns.index, portfolio_returns['Cumulative Benchmark Return
 
 plt.xlabel('Date')
 plt.ylabel('Return')
-plt.title('Momentum Strategy vs Benchmark Returns')
+plt.title('Beta Momentum Strategy vs Benchmark Returns')
 plt.legend()
 plt.grid(True)
 plt.xticks(rotation=45)
